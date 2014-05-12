@@ -2,12 +2,13 @@ package edu.umass.cs.iesl.fac_reader
 
 import cc.factorie.app.nlp._
 import cc.factorie.app.nlp.pos._
-import cc.factorie.app.nlp.ner._
 
 import edu.umass.cs.iesl.protos._
-import edu.umass.cs.iesl.protos.AnnotationType._
 import scala.collection.mutable
 import scala.collection.JavaConverters._
+import cc.factorie.app.nlp.ner.BilouConllNerTag
+import scala.io.Source
+import java.io.{BufferedWriter, FileWriter, FileInputStream, FileOutputStream}
 
 /**
  * @author John Sullivan
@@ -17,14 +18,14 @@ trait AnnotationMethod {
   def annotationType:AnnotationType
   protected var _annotator:String = null
 
-  private final def method = protoMethod.setAnnotation(annotation).setAnnotator(_annotator).setType(annotationType).build()
+  private final def methodProto = protoMethod.setAnnotation(annotation).setAnnotator(_annotator).setType(annotationType).build()
 
   def withAnnotator(annotator:String):AnnotationMethod = {
     _annotator = annotator
     this
   }
 
-  def addMethod(fDoc:DocumentBuilder):DocumentBuilder = fDoc.addMethod(method)
+  def addMethod(fDoc:DocumentBuilder):DocumentBuilder = fDoc.addMethod(methodProto)
 
   def serialize(doc:Document, serDoc:DocumentBuilder):DocumentBuilder
 
@@ -33,7 +34,14 @@ trait AnnotationMethod {
 
 trait TokenLevelAnnotation extends AnnotationMethod {
   def serializeToken(fToken:Token, pToken:TokenBuilder = protoToken):TokenBuilder
-  def deserializeToken(pToken:TokenBuilder, fToken:Token):Token
+  def deserializeToken(pToken:ProtoToken, fToken:Token):Token
+  protected var _methodIndex = null.asInstanceOf[Int]
+  protected final def annotationProto = protoAnnotation.setType(annotationType).setMethodIndex(_methodIndex)
+
+  def withMethodIndex(methodIndex:Int):TokenLevelAnnotation = {
+    _methodIndex = methodIndex
+    this
+  }
 
   def deserialize(doc: Document, serDoc:ProtoDocument)(annoClass: (Class[_], Class[_])) = ???
   def serialize(doc: Document, serDoc: DocumentBuilder) = ???
@@ -44,19 +52,31 @@ object TokenizationAnnotation extends TokenLevelAnnotation {
   val annotationType = AnnotationType.TEXT
 
   def serializeToken(fToken: Token, pToken: TokenBuilder) = {
-    pToken.setStart(fToken.stringStart).setEnd(fToken.stringEnd) //todo check that these are the correct offsets
+    pToken.setStart(fToken.stringStart).setEnd(fToken.stringEnd).addAnnotation(annotationProto.build()) //todo check that these are the correct offsets
   }
 
-  def deserializeToken(pToken: TokenBuilder, fToken: Token) = new Token(pToken.getStart, pToken.getEnd)
+  def deserializeToken(pToken: ProtoToken, fToken: Token) = new Token(pToken.getStart, pToken.getEnd)
 }
 
 object POSAnnotation extends TokenLevelAnnotation {
   val annotation = "cc.factorie.app.nlp.pos.PennPosTag"
   val annotationType = AnnotationType.TAG
 
-  def serializeToken(fToken:Token, pToken:TokenBuilder) = pToken.addAnnotation(protoAnnotation.setText(fToken.posTag.categoryValue).setType(annotationType).build())
-  def deserializeToken(pToken:TokenBuilder, fToken:Token) = {
-    new PennPosTag(fToken, pToken.getAnnotation().getText) //todo figure out anno method idx
+  def serializeToken(fToken:Token, pToken:TokenBuilder) = pToken.addAnnotation(annotationProto.setText(fToken.posTag.categoryValue).build())
+  def deserializeToken(pToken:ProtoToken, fToken:Token) = {
+    fToken.attr += new PennPosTag(fToken, pToken.getAnnotation(_methodIndex).getText)
+    fToken
+  }
+}
+
+object BILOUNERAnnotation extends TokenLevelAnnotation {
+  val annotation = "cc.factorie.app.nlp.ner.BilouOntonotesNerTag"
+  val annotationType = AnnotationType.TAG
+
+  def serializeToken(fToken:Token, pToken:TokenBuilder) = pToken.addAnnotation(protoAnnotation.setText(fToken.nerTag.categoryValue).setType(annotationType).build())
+  def deserializeToken(pToken:ProtoToken, fToken:Token) = {
+    fToken.attr += new BilouConllNerTag(fToken, pToken.getAnnotation(_methodIndex).getText)
+    fToken
   }
 }
 
@@ -68,6 +88,23 @@ class AnnotationSuite(annotators:IndexedSeq[AnnotationMethod]) {
   private val (tokenAnnotators, generalAnnotators) = annotators.partition(_.isInstanceOf[TokenLevelAnnotation])
 
   def serialize(fDoc:Document, sDoc:DocumentBuilder = protoDocument):ProtoDocument = {
+    sDoc.setId(fDoc.name)
+    sDoc.setText(fDoc.string)
+
+    fDoc.annotators.foreach { case(annotationClass, annotatorClass) =>
+      val annotation = nameMap(annotationClass); val annotator = nameMap(annotatorClass)
+      annotatorMap.get(annotation) match {
+        case Some(anno) => anno.withAnnotator(annotator)
+        case None => println("WARNING: Document %s had annotation %s with no corresponding serializer".format(fDoc.name, annotation))
+      }
+    }
+    annotatorMap.foreach { case (annotation, _) =>
+      fDoc.annotators.get(classMap(annotation)) match {
+        case Some(_) => Unit
+        case None => println("WARNING: Document %s does not contain expected annotation %s".format(fDoc.name, annotation))
+      }
+    }
+
     val pTokens = fDoc.tokens.map { fToken =>
       tokenAnnotators.foldLeft(protoToken){case (pToken, anno) =>
         anno.asInstanceOf[TokenLevelAnnotation].serializeToken(fToken, pToken)
@@ -82,168 +119,70 @@ class AnnotationSuite(annotators:IndexedSeq[AnnotationMethod]) {
     sDoc.build()
   }
 
-  def deserialize(sDoc:DocumentBuilder, fDoc:Document = new Document()):Document = {
+  def deserialize(sDoc:ProtoDocument, fDoc:Document = new Document()):Document = {
     fDoc.setName(sDoc.getId)
     fDoc.appendString(sDoc.getText)
-    sDoc.getMethodList.asScala.foreach { sMethod =>
+    sDoc.getMethodList.asScala.zipWithIndex.foreach { case(sMethod, idx) =>
       annotatorMap.get(sMethod.getAnnotation) match {
-        case Some(anno) => anno.deserialize(fDoc, sDoc) //todo fix for deserialize token
+        case Some(anno) if anno.isInstanceOf[TokenLevelAnnotation] => anno.asInstanceOf[TokenLevelAnnotation].withMethodIndex(idx)
+        case Some(_) => Unit
         case None => println("WARNING: deserializing %s. No annotation method found for %s".format(sDoc.getId, sMethod.getAnnotation))
       }
     }
+    sDoc.getTokenList.asScala.foreach { sToken =>
+      fDoc.asSection += tokenAnnotators.foldLeft(null.asInstanceOf[Token]) { case(fToken, anno) =>
+        anno.asInstanceOf[TokenLevelAnnotation].deserializeToken(sToken, fToken)
+      }
+    }
+    /*
+    sDoc.getMethodList.asScala.zipWithIndex.foreach { case(sMethod, idx) =>
+      annotatorMap.get(sMethod.getAnnotation) match {
+        case Some(anno) =>
+          sDoc.getTokenList.asScala.foreach { sToken =>
+
+          }
+        //anno.deserialize(fDoc, sDoc) //todo fix for deserialize token
+        case None => println("WARNING: deserializing %s. No annotation method found for %s".format(sDoc.getId, sMethod.getAnnotation))
+      }
+    }
+    */
     fDoc
   }
-  /*
-  def fromDocument(doc:Document, serDoc:DocumentBuilder = protoDocument):ProtoDocument = annotators.flatMap { annoMethod =>
-    doc.annotatorFor(classMap(annoMethod.annotation)) match {
-      case Some(cl) =>
-        val annotator = nameMap(cl)
-        Some(annoMethod.withAnnotator(annotator))
-      case None => println("WARNING: No annotation found for %s in document %s".format(annoMethod.annotation, doc.name)); None
-    }
-  }.foldLeft(serDoc){case (s, anno) => anno.addSerialization(doc, s)}.build()   //todo This serialization requires n passes per token we want one. have 'token annotation' that scan through with singleton method
-  */
-  /*
-  def fromSerialization(serDoc:ProtoDocument, doc:Document = new Document()):Document = {
-    doc.setName(serDoc.getId)
-    doc.appendString(serDoc.getText)
-    annotators.zipWithIndex.map{ case(annoMethod, idx) =>
-      val method = serDoc.getMethod(idx)
-      assert(method.getAnnotation == annoMethod.annotation, "ERROR: annotation order should match. Expected %s in position %d, found %s".format(annoMethod.annotation, idx, method.getAnnotation))
-      annoMethod.deserialize(idx, doc, serDoc)
-    }
-    doc
-  }
-  */
-  /*
-  def fromDocument(doc:Document, ser:DocumentBuilder = protoDocument):DocumentBuilder = {
-    doc.annotators.flatMap { case(annotation, annotator) =>
-      annotators.get(annotation.getName) match {
-        case Some(a) => Some(a.withAnnotator(annotator))
-        case None => println("WARNING: Found unknown annotation (%s) in document (%s)".format(annotation, doc.name)); None
-      }
-    }.foldLeft(ser){case (s, anno) => anno.addSerialization(doc, s)}
-  }
-  */
 }
-/*
-object TokenAnnotation extends AnnotationMethod {
-  def annotation = "cc.factorie.app.nlp.Token"
 
-  def serialize(doc:Document, serDoc: DocumentBuilder) = {
-    serDoc.addMethod(method.setType(AnnotationType.TEXT).build())
-    doc.tokens.foreach{ fToken =>
-      serDoc.addToken(protoToken.setStart(fToken.stringStart).setEnd(fToken.stringEnd)) // todo check that these are right
-    }
-    serDoc
+object SerDeTest {
+  def main(args:Array[String]) {
+    val docPath = args(0)
+
+    val doc = new Document(Source.fromFile(docPath).getLines().mkString).setName("testId")
+    println("Loaded document")
+    Pipeline.pipe.process(doc)
+    println("Annotated document")
+
+    val annos = new AnnotationSuite(Vector(TokenizationAnnotation, POSAnnotation))
+
+    val sDoc = annos.serialize(doc)
+    println("serialized document")
+    val wrt = new FileOutputStream("test.pb")
+    sDoc.writeTo(wrt)
+    wrt.flush()
+    wrt.close()
+    println("wrote document")
+    val wrt2 = new BufferedWriter(new FileWriter("protostring"))
+
+    wrt2.write(sDoc.toString)
+    wrt2.flush()
+    wrt2.close()
+
+    val sDoc2 = readDocument(new FileInputStream("test.pb"))
+    println("Read back serialzed doc")
+    val doc2 = annos.deserialize(sDoc2)
+    println("serialized doc")
   }
 
-  def deserialize(idx:Int, doc: Document, serDoc:ProtoDocument)(implicit classMap:mutable.HashMap[String, Class[_]]) = {
-    val method = serDoc.getMethod(idx)
-    doc.annotators += classMap(method.getAnnotation) -> classMap(method.getAnnotator)
-    serDoc.getTokenList.asScala.foreach { pToken =>
-      doc.asSection += new Token(pToken.getStart, pToken.getEnd)
-    }
-    doc
+  object Pipeline{
+    val defaultPipeline = Seq(OntonotesForwardPosTagger)
+    val map = new MutableDocumentAnnotatorMap ++= DocumentAnnotatorPipeline.defaultDocumentAnnotationMap
+    val pipe = DocumentAnnotatorPipeline(map=map.toMap, prereqs=Nil, defaultPipeline.flatMap(_.postAttrs))
   }
 }
-
-object POSAnnotation extends AnnotationMethod {
-  def annotation = "cc.factorie.app.nlp.pos.PennPosTag"
-
-  def serialize(doc:Document, serDoc:DocumentBuilder) = {
-    serDoc.addMethod(method.setType(AnnotationType.TAG).build())
-    doc.tokens.zipWithIndex.map
-  }
-}
-*/
-/*
-trait AnnotationMethod {
-  def annotation:String
-  def annotator:String
-  def annotationType:ProtoAnnotationType
-  def methodIndex:Int
-
-  import AnnotationMethod._
-  def toMethod:ProtoMethod = protoMethod.setAnnotation(annotation).setAnnotator(annotator).setType(annotationType).build()
-  def toAnnotationTuple:(Class[_], Class[_]) = classMap(annotation) -> classMap(annotator)
-}
-
-abstract class TokenAnnotation(val annotation:String, val annotator:String, val annotationType:ProtoAnnotationType, val methodIndex:Int) extends AnnotationMethod {
-  def makeAnnotation(token:Token):ProtoAnnotation
-  def annotateToken(token:Token, pAnno:ProtoAnnotation):Unit
-}
-
-class PennPosTokenAnnotation(annotation:Class[_], annotator:Class[_], index:Int) extends TokenAnnotation(annotation.getName, annotator.getName, TAG, index) {
-  def makeAnnotation(token: Token) = protoAnnotation.setText(token.posTag.categoryValue).build()
-  def annotateToken(token: Token, pAnno:ProtoAnnotation) {
-    token.attr += new pos.PennPosTag(token, pAnno.getText)
-  }
-}
-class NERTokenAnnotation(annotation:Class[_], annotator:Class[_], index:Int) extends TokenAnnotation(annotation.getName, annotator.getName, TAG, index) {
-  def makeAnnotation(token: Token) = protoAnnotation.setText(token.nerTag.categoryValue).build()
-  def annotateToken(token:Token, pAnno:ProtoAnnotation) {
-    token.attr += new ner.BilouOntonotesNerTag(token, pAnno.getText)
-  }
-}
-class SentenceBoundaryTokenAnnotation (annotation:Class[_], annotator:Class[_], index:Int) extends TokenAnnotation(annotation.getName, annotator.getName, BOUNDARY, index) {
-  import SentenceBoundaries._
-  def getVal(token:Token) = if(token.isSentenceStart) {
-    START
-  } else if(token.isSentenceEnd) {
-    END
-  } else {
-    INTERIOR
-  }
-
-  def makeAnnotation(token: Token) = protoAnnotation.setVal(getVal(token)).build()
-  def annotateToken(token: Token, pAnno:ProtoAnnotation) = Unit
-}
-
-object SentenceBoundaries {
-  val START = 0
-  val INTERIOR = 1
-  val END = 2
-}
-
-
-abstract class CompoundAnnotation(val annotation:String, val annotator:String, val annotationType:ProtoAnnotationType) extends AnnotationMethod {
-
-}
-
-/*
-case class AnnotationMethod(annotation:String, annotator:String, annotationType:ProtoAnnotationType) {
-}
-*/
-
-object AnnotationMethod {
-  private val classMap = mutable.HashMap[String, Class[_]]().withDefault(Class.forName)
-
-  def fromMethod(m:ProtoMethod):AnnotationMethod = ???
-
-  private val unknownAnnotations = mutable.HashMap[(String, String), Int]().withDefaultValue(0)
-
-  def fromAnnotation(annotation:Class[_], annotator:Class[_], index:Int)(implicit tag:ClassTag[PennPosTag], ner:ClassTag[BilouOntonotesNerTag], t:ClassTag[Token], s:ClassTag[Sentence]):Option[AnnotationMethod] = annotation match {
-    case _:Class[PennPosTag] => Some(new PennPosTokenAnnotation(annotation, annotator, index))
-    case _:Class[BilouOntonotesNerTag] => Some(new NERTokenAnnotation(annotation, annotator, index))
-    case _:Class[Sentence] => Some(new SentenceBoundaryTokenAnnotation(annotation, annotator, index))
-    case _:Class[Token] => None
-
-    case _ => {
-      unknownAnnotations.put(annotation.getName -> annotator.getName, unknownAnnotations(annotation.getName -> annotator.getName) + 1)
-      None
-    }
-  }
-  /*
-  val fromAnnotationTuple:PartialFunction[(Class[_], Class[_]), AnnotationMethod] = {
-    case tup:(Class[nlp.pos.PennPosTag], _) => new TokenAnnotation(tup._1.getName, tup._2.getName, TAG) {
-      override def makeAnnotation(token: Token) = protoAnnotation.setText(token.posTag.categoryValue).build()
-    }
-    case tup:(Class[nlp.ner.BilouOntonotesNerTag], _) => new TokenAnnotation(tup._1.getName, tup._2.getName, TAG) {
-      override def makeAnnotation(token: Token) = protoAnnotation.setText(token.nerTag.categoryValue).build()
-    }
-  }
-  */
-  //def fromAnnotationTuple(annotation:Class[_], annotator:Class[_]) = AnnotationMethod(annotation.getName, annotator.getName, OTHER)
-}
-*/

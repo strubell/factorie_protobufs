@@ -1,5 +1,7 @@
 package edu.umass.cs.iesl
 
+import java.io.InputStream
+
 /**
  * @author John Sullivan
  */
@@ -11,6 +13,7 @@ package object protos {
   type AnnotationType = ProtoFac.Document.AnnotationType
   type AnnotationBuilder = ProtoFac.Document.Annotation.Builder
   type TokenBuilder = ProtoFac.Document.Token.Builder
+  type ProtoToken = ProtoFac.Document.Token
 
   object AnnotationType {
     val TAG = ProtoFac.Document.AnnotationType.TAG
@@ -23,4 +26,6 @@ package object protos {
   def protoDocument = ProtoFac.Document.newBuilder()
   def protoAnnotation = ProtoFac.Document.Annotation.newBuilder()
   def protoToken = ProtoFac.Document.Token.newBuilder()
+
+  def readDocument(is:InputStream):ProtoDocument = ProtoFac.Document.parseFrom(is)
 }
