@@ -4,16 +4,19 @@ package edu.umass.cs.iesl
  * @author John Sullivan
  */
 package object protos {
+  type DocumentBuilder = ProtoFac.Document.Builder
   type ProtoDocument = ProtoFac.Document
+  type MethodBuilder = ProtoFac.Document.Method.Builder
   type ProtoMethod = ProtoFac.Document.Method
-  type ProtoAnnotationType = ProtoFac.Document.AnnotationType
-  type ProtoAnnotation = ProtoFac.Document.Annotation
-  type ProtoToken = ProtoFac.Document.Token
+  type AnnotationType = ProtoFac.Document.AnnotationType
+  type AnnotationBuilder = ProtoFac.Document.Annotation.Builder
+  type TokenBuilder = ProtoFac.Document.Token.Builder
 
   object AnnotationType {
     val TAG = ProtoFac.Document.AnnotationType.TAG
     val OTHER = ProtoFac.Document.AnnotationType.OTHER
     val BOUNDARY = ProtoFac.Document.AnnotationType.BOUNDARY
+    val TEXT = ProtoFac.Document.AnnotationType.TEXT
   }
 
   def protoMethod = ProtoFac.Document.Method.newBuilder()

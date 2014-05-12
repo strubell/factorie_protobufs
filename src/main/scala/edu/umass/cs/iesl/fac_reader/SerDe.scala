@@ -9,6 +9,7 @@ import scala.collection.JavaConverters._
  * Hello world!
  *
  */
+/*
 trait SerDe[Format] {
   def serialize(doc:Document):Format
   def deserialize(ser:Format):Document
@@ -88,3 +89,4 @@ object ProtoTest {
     docs.map(doc => doc.name -> Proto.serialize(doc))
   }
 }
+*/

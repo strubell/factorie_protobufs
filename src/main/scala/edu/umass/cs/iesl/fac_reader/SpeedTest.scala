@@ -14,6 +14,7 @@ import cc.factorie.app.nlp.segment.DeterministicTokenizer
 /**
  * @author John Sullivan
  */
+/*
 object SpeedTest {
 
   def pTokens(doc:Document):Iterable[ProtoToken] = doc.tokens.map{ token =>
@@ -93,3 +94,4 @@ object SpeedTest {
   }
 
 }
+*/
