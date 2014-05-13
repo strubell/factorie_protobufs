@@ -9,6 +9,7 @@ import scala.collection.JavaConverters._
 import cc.factorie.app.nlp.ner.BilouConllNerTag
 import scala.io.Source
 import java.io.{BufferedWriter, FileWriter, FileInputStream, FileOutputStream}
+import cc.factorie.app.nlp.segment.PlainNormalizedTokenString
 
 /**
  * @author John Sullivan
@@ -65,6 +66,23 @@ object POSAnnotation extends TokenLevelAnnotation {
   def serializeToken(fToken:Token, pToken:TokenBuilder) = pToken.addAnnotation(annotationProto.setText(fToken.posTag.categoryValue).build())
   def deserializeToken(pToken:ProtoToken, fToken:Token) = {
     fToken.attr += new PennPosTag(fToken, pToken.getAnnotation(_methodIndex).getText)
+    fToken
+  }
+}
+
+object NormalizedTokenAnnotation extends TokenLevelAnnotation {
+  val annotation = "cc.factorie.app.nlp.segment.PlainNormalizedTokenString"
+  val annotationType = AnnotationType.TAG
+
+  def serializeToken(fToken:Token, pToken:TokenBuilder) = {
+    val pAnno = protoAnnotation.setType(annotationType)
+    if(fToken.attr.contains[PlainNormalizedTokenString]) {
+      pAnno.setText(fToken.attr[PlainNormalizedTokenString].value)
+    }
+    pToken.addAnnotation(pAnno.build())
+  }
+  def deserializeToken(pToken:ProtoToken, fToken:Token) = {
+    fToken.attr += new PlainNormalizedTokenString(fToken, pToken.getAnnotation(_methodIndex).getText)
     fToken
   }
 }
@@ -134,18 +152,6 @@ class AnnotationSuite(annotators:IndexedSeq[AnnotationMethod]) {
         anno.asInstanceOf[TokenLevelAnnotation].deserializeToken(sToken, fToken)
       }
     }
-    /*
-    sDoc.getMethodList.asScala.zipWithIndex.foreach { case(sMethod, idx) =>
-      annotatorMap.get(sMethod.getAnnotation) match {
-        case Some(anno) =>
-          sDoc.getTokenList.asScala.foreach { sToken =>
-
-          }
-        //anno.deserialize(fDoc, sDoc) //todo fix for deserialize token
-        case None => println("WARNING: deserializing %s. No annotation method found for %s".format(sDoc.getId, sMethod.getAnnotation))
-      }
-    }
-    */
     fDoc
   }
 }
@@ -159,7 +165,7 @@ object SerDeTest {
     Pipeline.pipe.process(doc)
     println("Annotated document")
 
-    val annos = new AnnotationSuite(Vector(TokenizationAnnotation, POSAnnotation))
+    val annos = new AnnotationSuite(Vector(TokenizationAnnotation, NormalizedTokenAnnotation, POSAnnotation))
 
     val sDoc = annos.serialize(doc)
     println("serialized document")
