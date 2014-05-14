@@ -12,17 +12,22 @@ import java.io.{BufferedWriter, FileWriter, FileInputStream, FileOutputStream}
 import cc.factorie.app.nlp.segment.PlainNormalizedTokenString
 
 /**
- * @author John Sullivan
+  * @author John Sullivan
  */
 trait AnnotationMethod {
   def annotation:String
   def annotationType:AnnotationType
-  protected var _annotator:String = null
+  var annotator:String = null
+  protected var _methodIndex = null.asInstanceOf[Int]
 
-  private final def methodProto = protoMethod.setAnnotation(annotation).setAnnotator(_annotator).setType(annotationType).build()
+  protected final def methodProto = protoMethod.setAnnotation(annotation).setAnnotator(annotator).setType(annotationType).build()
 
-  def withAnnotator(annotator:String):AnnotationMethod = {
-    _annotator = annotator
+  def withMethodIndex(methodIndex:Int):AnnotationMethod = {
+    _methodIndex = methodIndex
+    this
+  }
+  def withAnnotator(_annotator:String):AnnotationMethod = {
+    annotator = _annotator
     this
   }
 
@@ -36,13 +41,8 @@ trait AnnotationMethod {
 trait TokenLevelAnnotation extends AnnotationMethod {
   def serializeToken(fToken:Token, pToken:TokenBuilder = protoToken):TokenBuilder
   def deserializeToken(pToken:ProtoToken, fToken:Token):Token
-  protected var _methodIndex = null.asInstanceOf[Int]
   protected final def annotationProto = protoAnnotation.setType(annotationType).setMethodIndex(_methodIndex)
 
-  def withMethodIndex(methodIndex:Int):TokenLevelAnnotation = {
-    _methodIndex = methodIndex
-    this
-  }
 
   def deserialize(doc: Document, serDoc:ProtoDocument)(annoClass: (Class[_], Class[_])) = ???
   def serialize(doc: Document, serDoc: DocumentBuilder) = ???
@@ -98,7 +98,30 @@ object BILOUNERAnnotation extends TokenLevelAnnotation {
   }
 }
 
-class AnnotationSuite(annotators:IndexedSeq[AnnotationMethod]) {
+object SentenceAnnotation extends AnnotationMethod {
+  val annotation = "cc.factorie.app.nlp.Sentence"
+  val annotationType = AnnotationType.BOUNDARY
+
+  def deserialize(doc: Document, serDoc: ProtoDocument)(annoClass: (Class[_], Class[_])) = {
+    val sentenceCompound = serDoc.getCompound(_methodIndex)
+    assert(sentenceCompound.getCompoundCount == 1)
+    sentenceCompound.getCompound(0).getSlotList.asScala.foreach { sSentence =>
+      new Sentence(doc.asSection, sSentence.getStartToken, sSentence.getEndToken)
+    }
+    doc
+  }
+
+  def serialize(doc: Document, serDoc: DocumentBuilder) = {
+    val sSentences = protoCompoundGroup.setType(annotationType).setMethodIndex(_methodIndex)
+    doc.sentences.foreach { fSentence =>
+      val boundaries = protoSlot.setStartToken(fSentence.start).setEndToken(fSentence.end).build()
+      sSentences.addCompound(protoCompund.addSlot(boundaries).build())
+    }
+    serDoc.addMethod(methodProto).addCompound(sSentences.build())
+  }
+}
+
+class AnnotationSuite(val annotators:IndexedSeq[AnnotationMethod]) {
   private implicit val classMap = mutable.HashMap[String, Class[_]]().withDefault{ className => Class.forName(className) }
   private val nameMap = mutable.HashMap[Class[_], String]().withDefault{ cl => cl.getName }
   private val annotatorMap = annotators.map(a => a.annotation -> a).toMap
@@ -140,6 +163,9 @@ class AnnotationSuite(annotators:IndexedSeq[AnnotationMethod]) {
   def deserialize(sDoc:ProtoDocument, fDoc:Document = new Document()):Document = {
     fDoc.setName(sDoc.getId)
     fDoc.appendString(sDoc.getText)
+    annotators.foreach { annoMethod =>
+      fDoc.annotators += classMap(annoMethod.annotation) -> classMap(annoMethod.annotator)
+    }
     sDoc.getMethodList.asScala.zipWithIndex.foreach { case(sMethod, idx) =>
       annotatorMap.get(sMethod.getAnnotation) match {
         case Some(anno) if anno.isInstanceOf[TokenLevelAnnotation] => anno.asInstanceOf[TokenLevelAnnotation].withMethodIndex(idx)
@@ -162,10 +188,11 @@ object SerDeTest {
 
     val doc = new Document(Source.fromFile(docPath).getLines().mkString).setName("testId")
     println("Loaded document")
+
     Pipeline.pipe.process(doc)
     println("Annotated document")
 
-    val annos = new AnnotationSuite(Vector(TokenizationAnnotation, NormalizedTokenAnnotation, POSAnnotation))
+    val annos = new AnnotationSuite(Vector(TokenizationAnnotation, NormalizedTokenAnnotation, SentenceAnnotation, POSAnnotation))
 
     val sDoc = annos.serialize(doc)
     println("serialized document")
@@ -184,6 +211,7 @@ object SerDeTest {
     println("Read back serialzed doc")
     val doc2 = annos.deserialize(sDoc2)
     println("serialized doc")
+    assert(annos.annotators.forall { anno => doc2.hasAnnotation(Class.forName(anno.annotation)) })
   }
 
   object Pipeline{

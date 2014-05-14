@@ -26,6 +26,9 @@ package object protos {
   def protoDocument = ProtoFac.Document.newBuilder()
   def protoAnnotation = ProtoFac.Document.Annotation.newBuilder()
   def protoToken = ProtoFac.Document.Token.newBuilder()
+  def protoCompoundGroup = ProtoFac.Document.CompoundGroup.newBuilder()
+  def protoCompund = ProtoFac.Document.Compound.newBuilder()
+  def protoSlot = ProtoFac.Document.Compound.CompoundSlot.newBuilder()
 
   def readDocument(is:InputStream):ProtoDocument = ProtoFac.Document.parseFrom(is)
 }
