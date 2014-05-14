@@ -1,12 +1,29 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>edu.umass.cs.iesl.fac_reader</groupId>
-  <artifactId>fac_reader</artifactId>
+  <groupId>edu.umass.cs.iesl.factorie_protobufs</groupId>
+  <artifactId>factorie_protobufs</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <inceptionYear>2008</inceptionYear>
+  <inceptionYear>2014</inceptionYear>
   <properties>
     <scala.version>2.10.0</scala.version>
   </properties>
+
+
+  <scm>
+    <connection>scm:git:https://github.com/JackSullivan/factorie_protobufs.git</connection>
+    <developerConnection>scm:git:git@github.com:JackSullivan/factorie_protobufs.git</developerConnection>
+    <url>https://github.com/JackSullivan/factorie_protobufs</url>
+    <tag>HEAD</tag>
+  </scm>
+
+  <licenses>
+    <license>
+      <name>Apache 2</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+      <comments>A business-friendly OSS license</comments>
+    </license>
+  </licenses>
 
   <repositories>
     <repository>
@@ -41,6 +58,7 @@
           <artifactId>factorie</artifactId>
           <version>1.0-SNAPSHOT</version>
       </dependency>
+      <!--
       <dependency>
           <groupId>cc.factorie.app.nlp</groupId>
           <artifactId>all-models</artifactId>
@@ -52,7 +70,7 @@
           <version>1.0-RC5</version>
           <type>pom</type>
       </dependency>
-
+      -->
       <dependency>
           <groupId>org.mongodb</groupId>
           <artifactId>mongo-java-driver</artifactId>

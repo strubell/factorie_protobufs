@@ -1,4 +1,4 @@
-package edu.umass.cs.iesl.fac_reader
+package edu.umass.cs.iesl.factorie_protobufs
 
 import cc.factorie.app.nlp._
 import cc.factorie.app.nlp.pos._

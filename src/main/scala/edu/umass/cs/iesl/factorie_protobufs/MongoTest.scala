@@ -1,4 +1,4 @@
-package edu.umass.cs.iesl.fac_reader
+package edu.umass.cs.iesl.factorie_protobufs
 
 import com.mongodb.{DB, MongoClient}
 import java.io.File
