@@ -1,4 +1,4 @@
-package edu.umass.cs.iesl.factorie_protobufs
+package edu.umass.cs.iesl.factorie_protobufs.serialization
 
 import cc.factorie.app.nlp._
 import cc.factorie.app.nlp.pos._
