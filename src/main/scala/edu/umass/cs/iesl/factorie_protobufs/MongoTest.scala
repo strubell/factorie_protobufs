@@ -13,7 +13,7 @@ import edu.umass.cs.iesl.factorie_protobufs.serialization._
 /**
  * @author John Sullivan
  */
-object MongoTest {
+protected object MongoTest {
   def getDBColl() = {
     val dbClient = new MongoClient("localhost", 27017)
     val db = dbClient.getDB("serialization-test")

@@ -2,14 +2,14 @@ package edu.umass.cs.iesl.factorie_protobufs
 
 import cc.factorie.app.nlp.pos.OntonotesForwardPosTagger
 import cc.factorie.app.nlp.{Document, DocumentAnnotatorPipeline, MutableDocumentAnnotatorMap}
-import java.io.File
+import java.io.{FileWriter, BufferedWriter, File}
 import scala.io.Source
 import edu.umass.cs.iesl.factorie_protobufs.io.FileId
 
 /**
  * @author John Sullivan
  */
-object FSTest {
+protected object FSTest {
   object Pipeline{
     val defaultPipeline = Seq(OntonotesForwardPosTagger)
     val map = new MutableDocumentAnnotatorMap ++= DocumentAnnotatorPipeline.defaultDocumentAnnotationMap
@@ -36,7 +36,7 @@ object FSTest {
 
     val docs = filenames.map{ file =>
       val id = FileId(file)
-      val text = Source.fromFile(file).getLines().mkString
+      val text = Source.fromFile(file).getLines().mkString("\n")
       val doc = new Document(text).setName(id.asId)
       doc
     }
@@ -48,6 +48,10 @@ object FSTest {
     println("Annotated documents in %.4f secs".format(t2/1000.0))
     t1 = System.currentTimeMillis()
     val serDocs = docs.map(_.serialize)
+    val w = new BufferedWriter(new FileWriter("ser-result"))
+    w write serDocs.head.toString
+    w.flush()
+    w.close()
     t2 = System.currentTimeMillis() - t1
     println("Serialized documents in %.4f secs".format(t2/1000.0))
     t1 = System.currentTimeMillis()
