@@ -6,7 +6,7 @@ import cc.factorie.app.nlp.pos._
 import edu.umass.cs.iesl.protos._
 import scala.collection.mutable
 import scala.collection.JavaConverters._
-import cc.factorie.app.nlp.ner.BilouConllNerTag
+import cc.factorie.app.nlp.ner._
 import scala.io.Source
 import java.io.{BufferedWriter, FileWriter, FileInputStream, FileOutputStream}
 import cc.factorie.app.nlp.segment.PlainNormalizedTokenString
@@ -115,16 +115,28 @@ object NormalizedTokenAnnotation extends TokenLevelAnnotation {
   }
 }
 
-object BILOUNERAnnotation extends TokenLevelAnnotation {
-  val annotation = "cc.factorie.app.nlp.ner.BilouOntonotesNerTag"
+class GenericNERAnnotation[NER <: NerTag](constructor:((Token, String) => NER))(implicit m:ClassTag[NER]) extends TokenLevelAnnotation {
+  val annotation = m.runtimeClass.getName
   val annotationType = AnnotationType.TAG
 
-  def serializeToken(fToken:Token, pToken:TokenBuilder) = pToken.addAnnotation(protoAnnotation.setText(fToken.nerTag.categoryValue).setType(annotationType).build())
+  def serializeToken(fToken:Token, pToken:TokenBuilder) = {
+    val pAnno = indexedAnnotation.setType(annotationType)
+    if(fToken.attr.contains[NER]) {
+      pAnno.setText(fToken.attr[NER].value)
+    }
+    pToken.addAnnotation(pAnno.build())
+  }
+
   def deserializeToken(pToken:ProtoToken, fToken:Token) = {
-    fToken.attr += new BilouConllNerTag(fToken, pToken.getAnnotation(_methodIndex).getText)
+    fToken.attr += constructor(fToken, pToken.getAnnotation(_methodIndex).getText)
     fToken
   }
 }
+
+object BILOUConllNERAnnotation extends GenericNERAnnotation({(t, s) => new BilouConllNerTag(t, s)})
+object BILOUOntonotesNERAnnotation extends GenericNERAnnotation({(t, s) => new BilouOntonotesNerTag(t, s)})
+object BIOConllNERAnnotation extends GenericNERAnnotation({(t, s) => new BioConllNerTag(t, s)})
+object BIOOntonotesNERAnnotation extends GenericNERAnnotation({(t, s) => new BioOntonotesNerTag(t, s)})
 
 object SentenceAnnotation extends AnnotationMethod {
   val annotation = "cc.factorie.app.nlp.Sentence"

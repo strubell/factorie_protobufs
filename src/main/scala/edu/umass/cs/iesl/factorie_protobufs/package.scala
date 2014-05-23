@@ -1,11 +1,10 @@
 package edu.umass.cs.iesl
 
-import cc.factorie.app.nlp.{Token, Document}
+import cc.factorie.app.nlp.Document
 import edu.umass.cs.iesl.protos._
 import edu.umass.cs.iesl.factorie_protobufs.serialization._
 import edu.umass.cs.iesl.factorie_protobufs.io.FileId
 import java.io.{FileInputStream, File, FileOutputStream}
-import cc.factorie.app.nlp.lemma._
 
 /**
  * @author John Sullivan
@@ -22,8 +21,11 @@ package object factorie_protobufs {
       WordnetLemmaAnnotation,
       GeneralLemmaAnnotation,
       SentenceAnnotation,
-      POSAnnotation))
-
+      POSAnnotation,
+      BILOUConllNERAnnotation,
+      BILOUOntonotesNERAnnotation,
+      BIOConllNERAnnotation,
+      BIOOntonotesNERAnnotation))
 
   implicit class DocumentSerialization(doc:Document) {
     def serialize:ProtoDocument = defaultAnnotationSuite.serialize(doc)
