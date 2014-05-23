@@ -10,6 +10,8 @@ import cc.factorie.app.nlp.ner.BilouConllNerTag
 import scala.io.Source
 import java.io.{BufferedWriter, FileWriter, FileInputStream, FileOutputStream}
 import cc.factorie.app.nlp.segment.PlainNormalizedTokenString
+import cc.factorie.app.nlp.lemma._
+import scala.reflect.ClassTag
 
 /**
   * @author John Sullivan
@@ -41,7 +43,7 @@ trait AnnotationMethod {
 trait TokenLevelAnnotation extends AnnotationMethod {
   def serializeToken(fToken:Token, pToken:TokenBuilder = protoToken):TokenBuilder
   def deserializeToken(pToken:ProtoToken, fToken:Token):Token
-  protected final def annotationProto = protoAnnotation.setType(annotationType).setMethodIndex(_methodIndex)
+  protected final def indexedAnnotation = protoAnnotation.setType(annotationType).setMethodIndex(_methodIndex)
 
 
   def deserialize(doc: Document, serDoc:ProtoDocument)(annoClass: (Class[_], Class[_])) = ???
@@ -53,17 +55,42 @@ object TokenizationAnnotation extends TokenLevelAnnotation {
   val annotationType = AnnotationType.TEXT
 
   def serializeToken(fToken: Token, pToken: TokenBuilder) = {
-    pToken.setStart(fToken.stringStart).setEnd(fToken.stringEnd).addAnnotation(annotationProto.build()) //todo check that these are the correct offsets
+    pToken.setStart(fToken.stringStart).setEnd(fToken.stringEnd).addAnnotation(indexedAnnotation.build()) //todo check that these are the correct offsets
   }
 
   def deserializeToken(pToken: ProtoToken, fToken: Token) = new Token(pToken.getStart, pToken.getEnd)
 }
 
+class GenericLemmaAnnotation[Lemma <: TokenLemma](constructor:((Token, String) => Lemma))(implicit m:ClassTag[Lemma]) extends TokenLevelAnnotation {
+  val annotation:String = m.runtimeClass.getName
+  val annotationType = AnnotationType.TEXT
+
+  def serializeToken(fToken:Token, pToken:TokenBuilder) = {
+    val pAnno = indexedAnnotation.setType(annotationType)
+    if(fToken.attr.contains[Lemma]) {
+      pAnno.setText(fToken.attr[Lemma].value)
+    }
+    pToken.addAnnotation(pAnno.build())
+  }
+
+  def deserializeToken(pToken:ProtoToken, fToken:Token) = {
+    fToken.attr += constructor(fToken, pToken.getAnnotation(_methodIndex).getText)
+    fToken
+  }
+}
+
+object SimplifyDigitsLemmaAnnotation extends GenericLemmaAnnotation({(t:Token, s:String) => new SimplifyDigitsTokenLemma(t, s)})
+object CollapseDigitsLemmaAnnotation extends GenericLemmaAnnotation({(t:Token, s:String) => new CollapseDigitsTokenLemma(t, s)})
+object LowercaseLemmaAnnotation extends GenericLemmaAnnotation({(t:Token, s:String) => new LowercaseTokenLemma(t, s)})
+object PorterLemmaAnnotation extends GenericLemmaAnnotation({(t:Token, s:String) => new PorterTokenLemma(t, s)})
+object WordnetLemmaAnnotation extends GenericLemmaAnnotation({(t:Token, s:String) => new WordNetTokenLemma(t, s)})
+object GeneralLemmaAnnotation extends GenericLemmaAnnotation({(t:Token, s:String) => new TokenLemma(t, s)})
+
 object POSAnnotation extends TokenLevelAnnotation {
   val annotation = "cc.factorie.app.nlp.pos.PennPosTag"
   val annotationType = AnnotationType.TAG
 
-  def serializeToken(fToken:Token, pToken:TokenBuilder) = pToken.addAnnotation(annotationProto.setText(fToken.posTag.categoryValue).build())
+  def serializeToken(fToken:Token, pToken:TokenBuilder) = pToken.addAnnotation(indexedAnnotation.setText(fToken.posTag.categoryValue).build())
   def deserializeToken(pToken:ProtoToken, fToken:Token) = {
     fToken.attr += new PennPosTag(fToken, pToken.getAnnotation(_methodIndex).getText)
     fToken
@@ -72,14 +99,15 @@ object POSAnnotation extends TokenLevelAnnotation {
 
 object NormalizedTokenAnnotation extends TokenLevelAnnotation {
   val annotation = "cc.factorie.app.nlp.segment.PlainNormalizedTokenString"
-  val annotationType = AnnotationType.TAG
+  val annotationType = AnnotationType.TEXT
 
   def serializeToken(fToken:Token, pToken:TokenBuilder) = {
-    val pAnno = protoAnnotation.setType(annotationType)
+    val pAnno = indexedAnnotation.setType(annotationType)
     if(fToken.attr.contains[PlainNormalizedTokenString]) {
       pAnno.setText(fToken.attr[PlainNormalizedTokenString].value)
     }
     pToken.addAnnotation(pAnno.build())
+    pToken
   }
   def deserializeToken(pToken:ProtoToken, fToken:Token) = {
     fToken.attr += new PlainNormalizedTokenString(fToken, pToken.getAnnotation(_methodIndex).getText)
@@ -132,28 +160,32 @@ class AnnotationSuite(val annotators:IndexedSeq[AnnotationMethod]) {
     sDoc.setId(fDoc.name)
     sDoc.setText(fDoc.string)
 
+    var idx = 0
     fDoc.annotators.foreach { case(annotationClass, annotatorClass) =>
       val annotation = nameMap(annotationClass); val annotator = nameMap(annotatorClass)
       annotatorMap.get(annotation) match {
-        case Some(anno) => anno.withAnnotator(annotator)
+        case Some(anno) =>
+          val a = anno.withAnnotator(annotator).withMethodIndex(idx)
+          idx += 1
+          a
         case None => println("WARNING: Document %s had annotation %s with no corresponding serializer".format(fDoc.name, annotation))
       }
     }
-    annotatorMap.foreach { case (annotation, _) =>
+    val presentAnnotations = annotatorMap.flatMap { case (annotation, _) =>
       fDoc.annotators.get(classMap(annotation)) match {
-        case Some(_) => Unit
-        case None => println("WARNING: Document %s does not contain expected annotation %s".format(fDoc.name, annotation))
+        case Some(_) => Some(annotation)
+        case None => None
       }
-    }
+    }.toSet
 
     val pTokens = fDoc.tokens.map { fToken =>
-      tokenAnnotators.foldLeft(protoToken){case (pToken, anno) =>
+      tokenAnnotators.filter(a => presentAnnotations.contains(a.annotation)).foldLeft(protoToken){case (pToken, anno) =>
         anno.asInstanceOf[TokenLevelAnnotation].serializeToken(fToken, pToken)
       }.build()
     }.asJava
-    tokenAnnotators.foreach{_.addMethod(sDoc)}
+    tokenAnnotators.filter(a => presentAnnotations.contains(a.annotation)).foreach{_.addMethod(sDoc)}
     sDoc.addAllToken(pTokens)
-    generalAnnotators.foreach{ anno =>
+    generalAnnotators.filter(a => presentAnnotations.contains(a.annotation)).foreach{ anno =>
       anno.addMethod(sDoc)
       anno.serialize(fDoc, sDoc)
     }
@@ -163,7 +195,11 @@ class AnnotationSuite(val annotators:IndexedSeq[AnnotationMethod]) {
   def deserialize(sDoc:ProtoDocument, fDoc:Document = new Document()):Document = {
     fDoc.setName(sDoc.getId)
     fDoc.appendString(sDoc.getText)
-    annotators.foreach { annoMethod =>
+    val presentAnnotators = sDoc.getMethodList.asScala.flatMap { method =>
+      annotatorMap.get(method.getAnnotation)
+    }
+    val presentTokenAnnotators = presentAnnotators.collect{case a:TokenLevelAnnotation => a}
+    presentAnnotators.foreach { annoMethod =>
       fDoc.annotators += classMap(annoMethod.annotation) -> classMap(annoMethod.annotator)
     }
     sDoc.getMethodList.asScala.zipWithIndex.foreach { case(sMethod, idx) =>
@@ -174,7 +210,7 @@ class AnnotationSuite(val annotators:IndexedSeq[AnnotationMethod]) {
       }
     }
     sDoc.getTokenList.asScala.foreach { sToken =>
-      fDoc.asSection += tokenAnnotators.foldLeft(null.asInstanceOf[Token]) { case(fToken, anno) =>
+      fDoc.asSection += presentTokenAnnotators.foldLeft(null.asInstanceOf[Token]) { case(fToken, anno) =>
         anno.asInstanceOf[TokenLevelAnnotation].deserializeToken(sToken, fToken)
       }
     }
