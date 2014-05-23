@@ -20,6 +20,7 @@ package object protos {
     val OTHER = ProtoFac.Document.AnnotationType.OTHER
     val BOUNDARY = ProtoFac.Document.AnnotationType.BOUNDARY
     val TEXT = ProtoFac.Document.AnnotationType.TEXT
+    val CLUSTER = ProtoFac.Document.AnnotationType.CLUSTER
   }
 
   def protoMethod = ProtoFac.Document.Method.newBuilder()
@@ -27,7 +28,7 @@ package object protos {
   def protoAnnotation = ProtoFac.Document.Annotation.newBuilder()
   def protoToken = ProtoFac.Document.Token.newBuilder()
   def protoCompoundGroup = ProtoFac.Document.CompoundGroup.newBuilder()
-  def protoCompund = ProtoFac.Document.Compound.newBuilder()
+  def protoCompound = ProtoFac.Document.Compound.newBuilder()
   def protoSlot = ProtoFac.Document.Compound.CompoundSlot.newBuilder()
 
   def readDocument(is:InputStream):ProtoDocument = ProtoFac.Document.parseFrom(is)

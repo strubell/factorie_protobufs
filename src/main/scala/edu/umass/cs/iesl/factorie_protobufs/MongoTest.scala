@@ -31,7 +31,7 @@ protected object MongoTest {
     val pipe = DocumentAnnotatorPipeline(map=map.toMap, prereqs=Nil, defaultPipeline.flatMap(_.postAttrs))
   }
 
-  object Serializer extends AnnotationSuite(Vector(TokenizationAnnotation, NormalizedTokenAnnotation, SentenceAnnotation, POSAnnotation))
+  object Serializer extends AnnotationSuite(Vector(TokenizationAnnotation, PlainNormalizedTokenAnnotation, SentenceAnnotation, POSAnnotation))
 
   //def timeDb(docs:Iterable[ProtoDocument]):(Double)
 

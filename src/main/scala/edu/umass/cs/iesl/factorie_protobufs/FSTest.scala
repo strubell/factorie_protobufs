@@ -5,13 +5,14 @@ import cc.factorie.app.nlp.{Document, DocumentAnnotatorPipeline, MutableDocument
 import java.io.{FileWriter, BufferedWriter, File}
 import scala.io.Source
 import edu.umass.cs.iesl.factorie_protobufs.io.FileId
+import cc.factorie.app.nlp.coref.{DeterministicNamedCoref, ForwardCoref}
 
 /**
  * @author John Sullivan
  */
 protected object FSTest {
   object Pipeline{
-    val defaultPipeline = Seq(OntonotesForwardPosTagger)
+    val defaultPipeline = Seq(OntonotesForwardPosTagger, DeterministicNamedCoref)
     val map = new MutableDocumentAnnotatorMap ++= DocumentAnnotatorPipeline.defaultDocumentAnnotationMap
     val pipe = DocumentAnnotatorPipeline(map=map.toMap, prereqs=Nil, defaultPipeline.flatMap(_.postAttrs))
   }

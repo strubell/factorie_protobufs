@@ -13,7 +13,8 @@ package object factorie_protobufs {
   var defaultAnnotationSuite = new AnnotationSuite(
     Vector(
       TokenizationAnnotation,
-      NormalizedTokenAnnotation,
+      PlainNormalizedTokenAnnotation,
+      OntonotesNormalizedTokenAnnotation,
       SimplifyDigitsLemmaAnnotation,
       CollapseDigitsLemmaAnnotation,
       LowercaseLemmaAnnotation,
