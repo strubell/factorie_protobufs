@@ -10,7 +10,7 @@ import cc.factorie.app.nlp.phrase.Phrase
 /**
  * @author John Sullivan
  */
-class CorefAnnotation extends AnnotationMethod {
+object CorefAnnotation extends AnnotationMethod {
   val annotation = "cc.factorie.app.nlp.coref.WithinDocCoref"
   val annotationType = AnnotationType.CLUSTER
 

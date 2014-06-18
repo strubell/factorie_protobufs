@@ -26,7 +26,8 @@ package object factorie_protobufs {
       BILOUConllNERAnnotation,
       BILOUOntonotesNERAnnotation,
       BIOConllNERAnnotation,
-      BIOOntonotesNERAnnotation))
+      BIOOntonotesNERAnnotation,
+      CorefAnnotation))
 
   implicit class DocumentSerialization(doc:Document) {
     def serialize:ProtoDocument = defaultAnnotationSuite.serialize(doc)
