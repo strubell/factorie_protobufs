@@ -33,7 +33,7 @@ protected object FSTest {
     val outputDir = args(1)
     var t1 = System.currentTimeMillis()
 
-    val filenames = new File(docDir).listFiles().filter(_.getName.endsWith(".sgm"))
+    val filenames = new File(docDir).listFiles().filter(_.getName.endsWith(".sgm")).take(1)
 
     val docs = filenames.map{ file =>
       val id = FileId(file)

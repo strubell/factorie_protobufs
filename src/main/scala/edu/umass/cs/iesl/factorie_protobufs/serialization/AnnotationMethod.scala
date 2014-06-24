@@ -33,6 +33,9 @@ trait AnnotationMethod {
   def serialize(doc:Document, serDoc:DocumentBuilder):DocumentBuilder
 
   def deserialize(doc:Document, serDoc:ProtoDocument)(annoClass:(Class[_], Class[_])):Document
+
+  def deserializeCompound(sCompound:ProtoCompoundGroup, fDoc:Document):Document
+  def serializeCompound(fDoc:Document):ProtoCompoundGroup
 }
 
 trait TokenLevelAnnotation extends AnnotationMethod {
@@ -40,6 +43,8 @@ trait TokenLevelAnnotation extends AnnotationMethod {
   def deserializeToken(pToken:ProtoToken, fToken:Token):Token
   protected final def indexedAnnotation = protoAnnotation.setType(annotationType).setMethodIndex(_methodIndex)
 
+
+  def deserializeAnnotatation(sAnno:ProtoAnnotation, fToken:Token):Token
 
   def deserialize(doc: Document, serDoc:ProtoDocument)(annoClass: (Class[_], Class[_])) = ???
   def serialize(doc: Document, serDoc: DocumentBuilder) = ???
