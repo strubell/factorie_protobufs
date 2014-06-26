@@ -13,21 +13,22 @@ package object factorie_protobufs {
   var defaultAnnotationSuite = new AnnotationSuite(
     Vector(
       TokenizationAnnotation,
-      PlainNormalizedTokenAnnotation,
-      OntonotesNormalizedTokenAnnotation,
-      SimplifyDigitsLemmaAnnotation,
-      CollapseDigitsLemmaAnnotation,
-      LowercaseLemmaAnnotation,
-      PorterLemmaAnnotation,
-      WordnetLemmaAnnotation,
-      GeneralLemmaAnnotation,
-      SentenceAnnotation,
-      POSAnnotation,
-      BILOUConllNERAnnotation,
-      BILOUOntonotesNERAnnotation,
-      BIOConllNERAnnotation,
-      BIOOntonotesNERAnnotation,
-      CorefAnnotation))
+//      PlainNormalizedTokenAnnotation,
+//      OntonotesNormalizedTokenAnnotation,
+//      SimplifyDigitsLemmaAnnotation,
+//      CollapseDigitsLemmaAnnotation,
+//      LowercaseLemmaAnnotation,
+//      PorterLemmaAnnotation,
+//      WordnetLemmaAnnotation,
+//      GeneralLemmaAnnotation,
+      SentenceAnnotation
+//      POSAnnotation,
+//      BILOUConllNERAnnotation,
+//      BILOUOntonotesNERAnnotation,
+//      BIOConllNERAnnotation,
+//      BIOOntonotesNERAnnotation,
+//      CorefAnnotation
+    ))
 
   implicit class DocumentSerialization(doc:Document) {
     def serialize:ProtoDocument = defaultAnnotationSuite.serialize(doc)

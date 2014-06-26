@@ -37,6 +37,8 @@ class AnnotationSuite(val annotators:IndexedSeq[AnnotationMethod]) {
       }
     }.toSet
 
+    println(s"Serializing annotations: ${presentAnnotations.mkString(",")}")
+
     val pTokens = fDoc.tokens.map { fToken =>
       tokenAnnotators.filter(a => presentAnnotations.contains(a.annotation)).foldLeft(protoToken){case (pToken, anno) =>
         anno.asInstanceOf[TokenLevelAnnotation].serializeToken(fToken, pToken)
@@ -55,10 +57,13 @@ class AnnotationSuite(val annotators:IndexedSeq[AnnotationMethod]) {
     fDoc.setName(sDoc.getId)
     fDoc.appendString(sDoc.getText)
     val presentAnnotators = sDoc.getMethodList.asScala.flatMap { method =>
-      annotatorMap.get(method.getAnnotation)
+      val am = annotatorMap.get(method.getAnnotation)
+      if(am.isDefined) am.get.annotator = method.getAnnotator
+      am
     }
     val presentTokenAnnotators = presentAnnotators.collect{case a:TokenLevelAnnotation => a}
     presentAnnotators.foreach { annoMethod =>
+
       fDoc.annotators += classMap(annoMethod.annotation) -> classMap(annoMethod.annotator)
     }
     sDoc.getMethodList.asScala.zipWithIndex.foreach { case(sMethod, idx) =>

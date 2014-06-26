@@ -50,7 +50,9 @@ object TokenizationAnnotation extends TokenLevelAnnotation {
   val annotationType = AnnotationType.TEXT
 
   def serializeToken(fToken: Token, pToken: TokenBuilder) = {
-    pToken.setStart(fToken.stringStart).setEnd(fToken.stringEnd).addAnnotation(indexedAnnotation.build()) //todo check that these are the correct offsets
+    // TODO these are the wrong offsets
+    // want: fileStringStart, fileStringEnd
+    pToken.setStart(fToken.stringStart).setEnd(fToken.stringEnd).addAnnotation(indexedAnnotation.build())
   }
 
   def deserializeToken(pToken: ProtoToken, fToken: Token) = new Token(pToken.getStart, pToken.getEnd)
