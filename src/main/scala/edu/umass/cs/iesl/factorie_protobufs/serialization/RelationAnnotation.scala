@@ -11,34 +11,31 @@ import cc.factorie.app.nlp.phrase.Phrase
  */
 class RelationMentionList extends collection.mutable.ArrayBuffer[RelationMention] with Attr
 
-class RelationAnnotation extends AnnotationMethod {
-  val annotation = "cc.factorie.app.nlp.coref.RelationMentionList"
-  val annotationType = AnnotationType.CLUSTER
-
+object RelationAnnotation extends CompoundAnnotation {
+  val annotation = classOf[RelationMentionList].getName
   private val ARG1 = "arg1"
   private val ARG2 = "arg2"
 
+  def serialize(un: Document) = protoCompoundGroup.mergeFrom(methodAnno).addAllCompound {
+    un.attr[RelationMentionList].map { rm =>
+        protoCompound.setText(rm.evidence).setText(rm.relationType).addAllSlot{
+          Seq(protoSlot.setLabel(ARG1).setStartToken(rm.arg1.phrase.start).setEndToken(rm.arg1.phrase.end).build(),
+          protoSlot.setLabel(ARG2).setStartToken(rm.arg2.phrase.start).setEndToken(rm.arg2.phrase.end).build()).asJava
+        }.build()
+      }.asJava
+  }.build()
 
-  def serialize(doc: Document, serDoc: DocumentBuilder) = serDoc.addMethod(protoMethod)
-    .addCompound(protoCompoundGroup.setType(annotationType).setMethodIndex(_methodIndex)
-    .addAllCompound(doc.attr[RelationMentionList].map { rm:RelationMention =>
-    protoCompound.setText(rm.evidence).setType(rm.relationType)
-      .addAllSlot(Seq(protoSlot.setLabel(ARG1).setStartToken(rm.arg1.phrase.start).setEndToken(rm.arg1.phrase.end).build(),
-      protoSlot.setLabel(ARG2).setStartToken(rm.arg2.phrase.start).setEndToken(rm.arg2.phrase.end).build()).asJava).build()
-    }.asJava).build())
-
-  def deserialize(doc: Document, serDoc: ProtoDocument)(annoClass: (Class[_], Class[_])) = {
+  def deserialize(ser: ProtoCompoundGroup, un: Document) = {
     val rms = new RelationMentionList
-    doc.annotators += annoClass
-    val coref = doc.coref
-    rms ++= serDoc.getCompound(_methodIndex).getCompoundList.asScala.map{ sRel =>
+    val coref = un.coref
+    rms ++= ser.getCompoundList.asScala.map { sRel =>
       val evidence = sRel.getText
       val relationType = sRel.getType
-      val arg1 = coref.addMention(new Phrase(new TokenSpan(doc.asSection, sRel.getSlot(0).getStartToken, sRel.getSlot(0).getEndToken)))
-      val arg2 = coref.addMention(new Phrase(new TokenSpan(doc.asSection, sRel.getSlot(1).getStartToken, sRel.getSlot(1).getEndToken)))
+      val arg1 = coref.addMention(new Phrase(new TokenSpan(un.asSection, sRel.getSlot(0).getStartToken, sRel.getSlot(0).getEndToken)))
+      val arg2 = coref.addMention(new Phrase(new TokenSpan(un.asSection, sRel.getSlot(1).getStartToken, sRel.getSlot(1).getEndToken)))
       new RelationMention(arg1, arg2, relationType, evidence)
     }
-    doc.attr += rms
-    doc
+    un.attr += rms
+    un
   }
 }
