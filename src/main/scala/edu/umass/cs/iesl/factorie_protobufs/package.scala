@@ -10,27 +10,7 @@ import java.io.{FileInputStream, File, FileOutputStream}
  * @author John Sullivan
  */
 package object factorie_protobufs {
-  /*
-  var defaultAnnotationSuite = new AnnotationSuite(
-    Vector(
-      TokenAnnotation,
-      PlainNormalizedTokenAnnotation,
-      OntonotesNormalizedTokenAnnotation,
-      SimplifyDigitsLemmaAnnotation,
-      CollapseDigitsLemmaAnnotation,
-      LowercaseLemmaAnnotation,
-      PorterLemmaAnnotation,
-      WordnetLemmaAnnotation,
-      GeneralLemmaAnnotation,
-      SentenceAnnotation,
-      SectionAnnotation,
-      POSAnnotation,
-      BILOUConllNERAnnotation,
-      BILOUOntonotesNERAnnotation,
-      BIOConllNERAnnotation,
-      BIOOntonotesNERAnnotation,
-      CorefAnnotation))
-      */
+
   var defaultAnnotationSuite = new AnnotationSuite(
     TokenAnnotation,
     Vector(PlainNormalizedTokenAnnotation,
@@ -48,7 +28,8 @@ package object factorie_protobufs {
       BIOOntonotesNERAnnotation),
     Vector(SentenceAnnotation,
       SectionAnnotation,
-      CorefAnnotation))
+      CorefAnnotation,
+      RelationAnnotation))
 
   implicit class DocumentSerialization(doc:Document) {
     def serialize:ProtoDocument = defaultAnnotationSuite.serialize(doc)

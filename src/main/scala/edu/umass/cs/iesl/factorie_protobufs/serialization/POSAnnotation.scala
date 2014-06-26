@@ -9,7 +9,6 @@ import edu.umass.cs.iesl.protos._
  */
 object POSAnnotation extends TokenTagAnnotation {
   val annotation = classOf[PennPosTag].getName
-  println("in class:%s annotation is %s".format(this.getClass.getName, annotation))
 
   override def serialize(un: Token) = protoAnnotation.mergeFrom(methodAnno).setText(un.posTag.categoryValue).build()
   def deserialize(ser: ProtoAnnotation, un: Token) = {
