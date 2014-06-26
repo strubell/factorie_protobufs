@@ -8,21 +8,15 @@ import edu.umass.cs.iesl.protos._
 /**
  * @author John Sullivan
  */
-class LemmaAnnotation[Lemma <: TokenLemma](constructor:((Token, String) => Lemma))(implicit m:ClassTag[Lemma]) extends TokenLevelAnnotation {
-  val annotation:String = m.runtimeClass.getName
-  val annotationType = AnnotationType.TEXT
+class LemmaAnnotation[Lemma <: TokenLemma](constructor:((Token, String) => Lemma))(implicit ct:ClassTag[Lemma]) extends TokenTagAnnotation {
+  val annotation = ct.getClass.getName
 
-  def serializeToken(fToken:Token, pToken:TokenBuilder) = {
-    val pAnno = indexedAnnotation.setType(annotationType)
-    if(fToken.attr.contains[Lemma]) {
-      pAnno.setText(fToken.attr[Lemma].value)
+  override def serialize(un: Token) = super.serialize(un).setText(if(un.attr.contains[Lemma]) un.attr[Lemma].value else "").build()
+  def deserialize(ser: ProtoAnnotation, un: Token) = {
+    if(ser.getText.nonEmpty) {
+      un.attr += constructor(un, ser.getText)
     }
-    pToken.addAnnotation(pAnno.build())
-  }
-
-  def deserializeToken(pToken:ProtoToken, fToken:Token) = {
-    fToken.attr += constructor(fToken, pToken.getAnnotation(_methodIndex).getText)
-    fToken
+    un
   }
 }
 

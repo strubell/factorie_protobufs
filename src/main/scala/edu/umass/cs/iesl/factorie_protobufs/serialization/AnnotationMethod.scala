@@ -49,7 +49,7 @@ trait TokenLevelAnnotation extends AnnotationMethod {
   def deserialize(doc: Document, serDoc:ProtoDocument)(annoClass: (Class[_], Class[_])) = ???
   def serialize(doc: Document, serDoc: DocumentBuilder) = ???
 }
-
+/*
 object TokenizationAnnotation extends TokenLevelAnnotation {
   val annotation = "cc.factorie.app.nlp.Token"
   val annotationType = AnnotationType.TEXT
@@ -60,7 +60,8 @@ object TokenizationAnnotation extends TokenLevelAnnotation {
 
   def deserializeToken(pToken: ProtoToken, fToken: Token) = new Token(pToken.getStart, pToken.getEnd)
 }
-
+*/
+/*
 object POSAnnotation extends TokenLevelAnnotation {
   val annotation = "cc.factorie.app.nlp.pos.PennPosTag"
   val annotationType = AnnotationType.TAG
@@ -71,7 +72,8 @@ object POSAnnotation extends TokenLevelAnnotation {
     fToken
   }
 }
-
+*/
+/*
 object SentenceAnnotation extends AnnotationMethod {
   val annotation = "cc.factorie.app.nlp.Sentence"
   val annotationType = AnnotationType.BOUNDARY
@@ -94,7 +96,7 @@ object SentenceAnnotation extends AnnotationMethod {
     serDoc.addMethod(methodProto).addCompound(sSentences.build())
   }
 }
-
+*/
 object SerDeTest {
   def main(args:Array[String]) {
     val docPath = args(0)

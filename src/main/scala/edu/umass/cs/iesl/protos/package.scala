@@ -16,7 +16,7 @@ package object protos {
   type ProtoMethod = ProtoFac.Document.Method
   type AnnotationType = ProtoFac.Document.AnnotationType
   type AnnotationBuilder = ProtoFac.Document.Annotation.Builder
-  type ProtoAnnotation = ProtoFac.Document.Annotation
+  type ProtoAnnotation = ProtoFac.Document.AnnotationOrBuilder
   type ProtoCompoundGroup = ProtoFac.Document.CompoundGroupOrBuilder
   //type TokenBuilder = ProtoFac.Document.Token.Builder
   type ProtoToken = ProtoFac.Document.TokenOrBuilder

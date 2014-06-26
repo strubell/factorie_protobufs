@@ -2,11 +2,12 @@ package edu.umass.cs.iesl.factorie_protobufs.serialization
 
 import com.google.protobuf.Message
 import edu.umass.cs.iesl.protos._
-import cc.factorie.app.nlp.{TokenSpan, TokenString, Token, Document}
+import cc.factorie.app.nlp._
 import scala.reflect.ClassTag
 import scala.collection.JavaConverters._
 import cc.factorie.app.nlp.coref.WithinDocCoref
 import cc.factorie.app.nlp.phrase.Phrase
+import cc.factorie.app.nlp.pos.PennPosTag
 
 /**
  * @author John Sullivan
@@ -42,19 +43,23 @@ object AnnotationTemplate {
 }
 
 trait AnnotationTemplate[Serialized, Unserialized] {
-  protected var methodIndex:Int = null
-  protected var annotator:String = null
+  protected var _methodIndex:Int = null
+  protected var _annotator:String = null
   def annotation:String
+  final def annotator = _annotator
+  final def methodIndex = _methodIndex
   def annotationType:AnnotationType
 
-  def withMethod(_methodIndex:Int) = {
-    methodIndex = _methodIndex
+  def withMethodIndex(__methodIndex:Int) = {
+    _methodIndex = __methodIndex
     this
   }
-  def withAnnotator(_annotator:String) = {
-    annotator = _annotator
+  def withAnnotator(__annotator:String) = {
+    _annotator = __annotator
     this
   }
+
+  lazy val method = protoMethod.setAnnotation(annotation).setType(annotationType).setAnnotator(_annotator).build()
 
   def serialize(un:Unserialized):Serialized
   def deserialize(ser:Serialized, un:Unserialized):Unserialized
@@ -63,11 +68,55 @@ trait AnnotationTemplate[Serialized, Unserialized] {
 trait CompoundAnnotation extends AnnotationTemplate[ProtoCompoundGroup, Document] {
   val annotationType = AnnotationType.CLUSTER
 
-  def serialize(un: Document) = protoCompoundGroup.setMethodIndex(methodIndex).setType(annotationType)
+  def serialize(un: Document) = protoCompoundGroup.setMethodIndex(_methodIndex).setType(annotationType)
 }
 
+trait BoundaryAnnotation extends CompoundAnnotation {
+  override val annotationType = AnnotationType.BOUNDARY
+}
+
+object SentenceAnnotation extends BoundaryAnnotation {
+  val annotation = classOf[Sentence].getName
+
+  def deserialize(ser: ProtoCompoundGroup, un: Document) = {
+    ser.getCompound(0).getSlotList.asScala.foreach { sSlot =>
+      new Sentence(un.asSection, sSlot.getStartToken, sSlot.getEndToken) // factorie side-effects!
+    }
+    un
+  }
+
+  override def serialize(un:Document) = super.serialize(un).addCompound{
+    protoCompound.addAllSlot{
+      un.sentences.map { fSentence =>
+        protoSlot.setStartToken(fSentence.start).setEndToken(fSentence.end).build()
+      }.asJava
+    }.build()
+  }.build()
+}
+
+object SectionAnnotation extends BoundaryAnnotation {
+  val annotation = classOf[Section].getName
+
+  override def serialize(un: Document) = super.serialize(un).addCompound{
+    protoCompound.addAllSlot{
+      un.sections.map { fSection =>
+        // These are actually character offsets into the docstring rather than token offsets,but we should be safe in this case
+        protoSlot.setStartToken(fSection.stringStart).setEndToken(fSection.stringEnd).build()
+      }.asJava
+    }.build()
+  }.build()
+
+  def deserialize(ser: ProtoCompoundGroup, un: Document) = {
+    ser.getCompound(0).getSlotList.asScala.foreach{ sSlot =>
+      un += new BasicSection(fDoc, sSlot.getStartToken, sSlot.getEndToken)
+    }
+    un
+  }
+}
+
+
 object CorefAnnotation extends CompoundAnnotation {
-  val annotation = "cc.factorie.app.nlp.coref.WithinDocCoref"
+  val annotation = classOf[WithinDocCoref].getName
 
   override def serialize(un:Document) = super.serialize(un).addAllCompound{
     un.coref.entities.map { entity =>
@@ -91,20 +140,30 @@ object CorefAnnotation extends CompoundAnnotation {
 }
 
 object TokenAnnotation extends AnnotationTemplate[ProtoToken, Token] {
-  val annotation = "cc.factorie.app.nlp.Token"
+  val annotation = classOf[Token].getName
   val annotationType = AnnotationType.TEXT
-  def deserialize(ser: ProtoToken, un: Token) = new Token(ser.getStart, ser.getEnd)
+  def deserialize(ser: ProtoToken, un: Token = null) = new Token(ser.getStart, ser.getEnd)
   def serialize(un: Token) = protoToken.setStart(un.stringStart).setEnd(un.stringEnd)
 }
 
 trait TokenTagAnnotation extends AnnotationTemplate[ProtoAnnotation, Token] {
   val annotationType = AnnotationType.TAG
 
-  abstract def serialize(un: Token) = protoAnnotation.setMethodIndex(methodIndex).setType(annotationType)
+  abstract def serialize(un: Token) = protoAnnotation.setMethodIndex(_methodIndex).setType(annotationType)
 }
 
 class NormalizedStringAnnotation[TokenStr <: TokenString](constructor:(Token, String) => TokenString)(implicit ct:ClassTag[TokenStr]) extends TokenTagAnnotation {
   val annotation = ct.runtimeClass.getName
   def deserialize(ser: ProtoAnnotation, un: Token) = un.attr += constructor(un, ser.getText)
-  override def serialize(un: Token) = super.serialize(un).setText(un.attr[TokenStr].value)
+  override def serialize(un: Token) = super.serialize(un).setText(un.attr[TokenStr].value).build()
+}
+
+object POSAnnotation extends TokenTagAnnotation {
+  val annotation = classOf[PennPosTag].getName
+
+  override def serialize(un: Token) = super.serialize(un).setText(un.posTag.categoryValue).build()
+  def deserialize(ser: ProtoAnnotation, un: Token) = {
+    un.attr += new PennPosTag(un, ser.getText)
+    un
+  }
 }

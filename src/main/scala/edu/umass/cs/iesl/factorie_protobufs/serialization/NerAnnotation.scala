@@ -8,6 +8,7 @@ import edu.umass.cs.iesl.protos._
 /**
  * @author John Sullivan
  */
+/*
 class NerAnnotation[NER <: NerTag](constructor:((Token, String) => NER))(implicit m:ClassTag[NER]) extends TokenLevelAnnotation {
   val annotation = m.runtimeClass.getName
   val annotationType = AnnotationType.TAG
@@ -23,6 +24,19 @@ class NerAnnotation[NER <: NerTag](constructor:((Token, String) => NER))(implici
   def deserializeToken(pToken:ProtoToken, fToken:Token) = {
     fToken.attr += constructor(fToken, pToken.getAnnotation(_methodIndex).getText)
     fToken
+  }
+}
+*/
+
+class NerAnnotation[NER <: NerTag](constructor:((Token, String) => NER))(implicit ct:ClassTag[NER]) extends TokenTagAnnotation {
+  val annotation = ct.getClass.getName
+
+  override def serialize(un: Token) = super.serialize(un).setText(if (un.attr.contains[NER]) un.attr[NER].value else "").build()
+  def deserialize(ser: ProtoAnnotation, un: Token) = {
+    if(ser.getText.nonEmpty) {
+      un.attr += constructor(un, ser.getText)
+    }
+    un
   }
 }
 
