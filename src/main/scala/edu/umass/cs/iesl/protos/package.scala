@@ -8,12 +8,14 @@ import java.io.InputStream
 package object protos {
   type DocumentBuilder = ProtoFac.Document.Builder
   type ProtoDocument = ProtoFac.Document
-  type MethodBuilder = ProtoFac.Document.Method.Builder
-  type ProtoMethod = ProtoFac.Document.Method
   type AnnotationType = ProtoFac.Document.AnnotationType
-  type AnnotationBuilder = ProtoFac.Document.Annotation.Builder
-  type TokenBuilder = ProtoFac.Document.Token.Builder
-  type ProtoToken = ProtoFac.Document.Token
+  //type AnnotationBuilder = ProtoFac.Document.Annotation.Builder
+  type ProtoAnnotation = ProtoFac.Document.AnnotationOrBuilder
+  type ProtoCompoundGroup = ProtoFac.Document.CompoundGroupOrBuilder
+  type ProtoToken = ProtoFac.Document.TokenOrBuilder
+
+  implicit def ProtoAnnotation2Anno(pa:ProtoAnnotation):ProtoFac.Document.Annotation = pa.asInstanceOf[ProtoFac.Document.Annotation]
+  implicit def ProtoCompound2Anno(pc:ProtoCompoundGroup):ProtoFac.Document.CompoundGroup = pc.asInstanceOf[ProtoFac.Document.CompoundGroup]
 
   object AnnotationType {
     val TAG = ProtoFac.Document.AnnotationType.TAG

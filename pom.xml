@@ -52,10 +52,11 @@
         <artifactId>protobuf-java</artifactId>
         <version>2.5.0</version>
     </dependency>
+
     <dependency>
         <groupId>cc.factorie</groupId>
         <artifactId>factorie</artifactId>
-        <version>1.1-SNAPSHOT</version>
+        <version>1.1-TAC-SNAPSHOT</version>
     </dependency>
   </dependencies>
 
@@ -65,7 +66,6 @@
             <name>dev-iesl.cs.umass.edu</name>
             <url>https://dev-iesl.cs.umass.edu/nexus/content/repositories/releases</url>
         </repository>
-
         <snapshotRepository>
             <id>dev-iesl.cs.umass.edu</id>
             <name>dev-iesl.cs.umass.edu</name>
