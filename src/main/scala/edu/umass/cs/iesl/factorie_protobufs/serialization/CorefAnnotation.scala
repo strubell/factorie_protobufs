@@ -26,7 +26,7 @@ object CorefAnnotation extends CompoundAnnotation {
     val coref = new WithinDocCoref(un)
     ser.getCompoundList.asScala.foreach{ sEnt =>
       sEnt.getSlotList.asScala.foldLeft(coref.newEntity()){ case(ent, sMent) =>
-        coref.addMention(new Phrase(new TokenSpan(un.asSection, sMent.getStartToken, sMent.getEndToken)), ent)
+        coref.addMention(new Phrase(new TokenSpan(un.asSection, sMent.getStartToken, sMent.getEndToken - sMent.getStartToken)), ent)
         ent
       }
     }

@@ -9,7 +9,7 @@ import edu.umass.cs.iesl.protos._
  * @author John Sullivan
  */
 class LemmaAnnotation[Lemma <: TokenLemma](constructor:((Token, String) => Lemma))(implicit ct:ClassTag[Lemma]) extends TokenTagAnnotation {
-  val annotation = ct.getClass.getName
+  val annotation = ct.runtimeClass.getName
 
   override def serialize(un: Token) = protoAnnotation.mergeFrom(methodAnno).setText(if(un.attr.contains[Lemma]) un.attr[Lemma].value else "").build()
   def deserialize(ser: ProtoAnnotation, un: Token) = {

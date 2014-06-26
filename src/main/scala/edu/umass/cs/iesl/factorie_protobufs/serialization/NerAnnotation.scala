@@ -9,7 +9,7 @@ import edu.umass.cs.iesl.protos._
  * @author John Sullivan
  */
 class NerAnnotation[NER <: NerTag](constructor:((Token, String) => NER))(implicit ct:ClassTag[NER]) extends TokenTagAnnotation {
-  val annotation = ct.getClass.getName
+  val annotation = ct.runtimeClass.getName
 
   override def serialize(un: Token) = protoAnnotation.mergeFrom(methodAnno).setText(if (un.attr.contains[NER]) un.attr[NER].categoryValue else "").build()
   def deserialize(ser: ProtoAnnotation, un: Token) = {

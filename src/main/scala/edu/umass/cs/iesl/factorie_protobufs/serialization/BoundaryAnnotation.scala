@@ -16,7 +16,7 @@ object SentenceAnnotation extends BoundaryAnnotation {
 
   def deserialize(ser: ProtoCompoundGroup, un: Document) = {
     ser.getCompound(0).getSlotList.asScala.foreach { sSlot =>
-      new Sentence(un.asSection, sSlot.getStartToken, sSlot.getEndToken) // factorie side-effects!
+      new Sentence(un.asSection, sSlot.getStartToken, sSlot.getEndToken - sSlot.getStartToken) // factorie side-effects!
     }
     un
   }

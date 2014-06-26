@@ -9,7 +9,7 @@ import cc.factorie.app.nlp.segment.{OntonotesNormalizedTokenString, PlainNormali
  * @author John Sullivan
  */
 class NormalizedTokenAnnotation[TokenStr <: TokenString](constructor:((Token, String) => TokenStr))(implicit ct:ClassTag[TokenStr]) extends TokenTagAnnotation {
-  val annotation = ct.getClass.getName
+  val annotation = ct.runtimeClass.getName
 
   override def serialize(un: Token) = protoAnnotation.mergeFrom(methodAnno).setText(if(un.attr.contains[TokenStr]) un.attr[TokenStr].value else "").build()
   def deserialize(ser: ProtoAnnotation, un: Token) = {
