@@ -24,7 +24,7 @@ object SentenceAnnotation extends BoundaryAnnotation {
   override def serialize(un:Document) = protoCompoundGroup.mergeFrom(methodAnno).addCompound{
     protoCompound.addAllSlot{
       un.sentences.map { fSentence =>
-        protoSlot.setStartToken(fSentence.start).setEndToken(fSentence.end).build()
+        protoSlot.setStartToken(fSentence.start).setEndToken(fSentence.end).setExtra(fSentence.section.indexInDocument).build()
       }.asJava
     }.build()
   }.build()
