@@ -77,6 +77,8 @@ message Document {
   message Compound {
     // Text representation of compound.
     optional string text = 1;
+    // Text representation of the compound's type
+    optional string type = 5;
     // Numerical representation of annotation.
     optional int32 val = 3;
     // Weight / confidence / strength of annotation.

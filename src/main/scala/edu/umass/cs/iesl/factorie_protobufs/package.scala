@@ -10,25 +10,26 @@ import java.io.{FileInputStream, File, FileOutputStream}
  * @author John Sullivan
  */
 package object factorie_protobufs {
+
   var defaultAnnotationSuite = new AnnotationSuite(
-    Vector(
-      TokenizationAnnotation,
-//      PlainNormalizedTokenAnnotation,
-//      OntonotesNormalizedTokenAnnotation,
-//      SimplifyDigitsLemmaAnnotation,
-//      CollapseDigitsLemmaAnnotation,
-//      LowercaseLemmaAnnotation,
-//      PorterLemmaAnnotation,
-//      WordnetLemmaAnnotation,
-//      GeneralLemmaAnnotation,
-      SentenceAnnotation
-//      POSAnnotation,
-//      BILOUConllNERAnnotation,
-//      BILOUOntonotesNERAnnotation,
-//      BIOConllNERAnnotation,
-//      BIOOntonotesNERAnnotation,
-//      CorefAnnotation
-    ))
+    TokenAnnotation,
+    Vector(PlainNormalizedTokenAnnotation,
+      OntonotesNormalizedTokenAnnotation,
+      SimplifyDigitsLemmaAnnotation,
+      CollapseDigitsLemmaAnnotation,
+      LowercaseLemmaAnnotation,
+      PorterLemmaAnnotation,
+      WordnetLemmaAnnotation,
+      GeneralLemmaAnnotation,
+      POSAnnotation,
+      BILOUConllNERAnnotation,
+      BILOUOntonotesNERAnnotation,
+      BIOConllNERAnnotation,
+      BIOOntonotesNERAnnotation),
+    Vector(SentenceAnnotation,
+      SectionAnnotation,
+      CorefAnnotation,
+      RelationAnnotation))
 
   implicit class DocumentSerialization(doc:Document) {
     def serialize:ProtoDocument = defaultAnnotationSuite.serialize(doc)
@@ -54,6 +55,12 @@ package object factorie_protobufs {
       } else {
         Seq(f)
       }
+    }
+
+    def readById(dir:String, idString:String):Option[ProtoDocument] = if(FileId(idString).asFilepath(dir, "pb").exists()) {
+      Some(readDocument(new FileInputStream(FileId(idString).asFilepath(dir, "pb"))))
+    } else {
+      None
     }
 
     def readStructuredFrom(dir:String):Iterable[ProtoDocument] = getFiles(new File(dir)).map{ file => readDocument(new FileInputStream(file)) }

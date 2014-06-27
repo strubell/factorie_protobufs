@@ -10,25 +10,26 @@ import cc.factorie.app.nlp.phrase.Phrase
 /**
  * @author John Sullivan
  */
-object CorefAnnotation extends AnnotationMethod {
-  val annotation = "cc.factorie.app.nlp.coref.WithinDocCoref"
-  val annotationType = AnnotationType.CLUSTER
+object CorefAnnotation extends CompoundAnnotation {
+  val annotation = classOf[WithinDocCoref].getName
 
-  def serialize(doc:Document, serDoc:DocumentBuilder):DocumentBuilder = serDoc.addMethod(protoMethod).addCompound(protoCompoundGroup.setType(annotationType).setMethodIndex(_methodIndex).addAllCompound(doc.coref.entities.map { entity =>
-    protoCompound.setText(entity.canonicalName).addAllSlot(entity.mentions.map { mention =>
-      protoSlot.setStartToken(mention.phrase.start).setEndToken(mention.phrase.end).build()
-    }.asJava).build()
-  }.asJava).build())
+  override def serialize(un:Document) = protoCompoundGroup.mergeFrom(methodAnno).addAllCompound{
+    un.coref.entities.map { entity =>
+      protoCompound.setText(if (entity.canonicalName != null) entity.canonicalName else entity.getFirstMention.string) // Come on people, it's 2014, I shouldn't have to guard for this.
+        .addAllSlot(entity.mentions.map { mention =>
+        protoSlot.setStartToken(mention.phrase.start).setEndToken(mention.phrase.end).build()
+      }.asJava).build()
+    }.asJava
+  }.build()
 
-  def deserialize(doc:Document, serDoc:ProtoDocument)(annoClass: (Class[_], Class[_])): Document = {
-    val coref = new WithinDocCoref(doc)
-    doc.annotators += annoClass
-    serDoc.getCompound(_methodIndex).getCompoundList.asScala.foreach{ sEnt =>
+  def deserialize(ser: ProtoCompoundGroup, un: Document) = {
+    val coref = new WithinDocCoref(un)
+    ser.getCompoundList.asScala.foreach{ sEnt =>
       sEnt.getSlotList.asScala.foldLeft(coref.newEntity()){ case(ent, sMent) =>
-        coref.addMention(new Phrase(new TokenSpan(doc.asSection, sMent.getStartToken, sMent.getEndToken)), ent)
+        coref.addMention(new Phrase(new TokenSpan(un.asSection, sMent.getStartToken, sMent.getEndToken - sMent.getStartToken)), ent)
         ent
       }
     }
-    doc
+    un
   }
 }
